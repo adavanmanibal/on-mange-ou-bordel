@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resto Swipe - 23 Juillet</title>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        body { font-family: sans-serif; overflow: hidden; margin: 0; padding: 0; background-color: #f0f2f5; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; position: relative; }
+        
+        #pluie-container { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: -1; overflow: hidden; }
+        .tete-pluie { position: absolute; top: -150px; width: 70px; height: 70px; object-fit: contain; animation: tomber linear infinite; opacity: 0.5; }
+        @keyframes tomber {
+            0% { transform: translateY(-100px) rotate(0deg); }
+            100% { transform: translateY(110vh) rotate(360deg); }
+        }
+        
+        #ecran-connexion { background: rgba(255, 255, 255, 0.95); padding: 30px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); text-align: center; max-width: 90%; width: 350px; z-index: 10; }
+        select { width: 100%; padding: 10px; margin: 15px 0; font-size: 16px; border: 1px solid #ccc; border-radius: 5px; }
+        
+        .cgv-container { text-align: left; font-size: 14px; margin-bottom: 20px; background: #f9f9f9; padding: 15px; border-radius: 8px; border: 1px solid #ddd; line-height: 1.4; }
+        .cgv-container label { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; }
+        
+        button.start-btn { background: #fe3c72; color: white; border: none; padding: 15px 20px; font-size: 18px; border-radius: 30px; cursor: pointer; width: 100%; transition: 0.3s; }
+        button.start-btn:disabled { background: #ccc; cursor: not-allowed; }
+
+        #ecran-vote { display: none; width: 100%; max-width: 400px; height: 85vh; position: relative; flex-direction: column; align-items: center; z-index: 10; }
+        .tinder-header { text-align: center; margin-bottom: 20px; color: #fe3c72; font-size: 24px; font-weight: 700; letter-spacing: 1px; text-shadow: 1px 1px 2px white; }
+        
+        .cartes-container { position: relative; width: 90%; height: 65vh; margin: 0 auto; }
+        .carte { position: absolute; width: 100%; height: 100%; background: white; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); overflow: hidden; display: flex; flex-direction: column; cursor: grab; transition: transform 0.3s ease; transform-origin: 50% 100%; will-change: transform; user-select: none; }
+        .carte:active { cursor: grabbing; }
+        .carte img { width: 100%; height: 75%; object-fit: cover; pointer-events: none; }
+        .carte-infos { padding: 20px; text-align: center; font-size: 22px; color: #333; }
+        
+        .boutons-action { display: flex; justify-content: space-around; width: 80%; margin-top: 20px; margin-left: auto; margin-right: auto; }
+        .bouton-rond { width: 65px; height: 65px; border-radius: 50%; border: none; font-size: 30px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1); background: white; transition: transform 0.2s; }
+        .bouton-rond:active { transform: scale(0.9); }
+        #btn-non { color: #fd5068; }
+        #btn-oui { color: #1ce598; }
+        
+        #message-fin { display: none; text-align: center; padding: 40px; font-size: 20px; color: #333; line-height: 1.5; background: rgba(255, 255, 255, 0.95); border-radius: 15px; z-index: 10; }
+        #message-fin h2 { color: #fe3c72; }
+    </style>
+</head>
+<body>
+
+    <div id="pluie-container"></div>
+
+    <div id="ecran-connexion">
+        <h2 style="color: #fe3c72; margin-top: 0;">Sortie du Jeudi 23 Juillet</h2>
+        <p>Qui es-tu ?</p>
+        <select id="select-personne">
+            <option value="">Sélectionne ton prénom...</option>
+            <option value="Adavan">Adavan</option>
+            <option value="Tristan">Tristan</option>
+            <option value="Marie">Marie</option>
+            <option value="Leila">Leila</option>
+            <option value="Christophe">Christophe</option>
+            <option value="Romain">Romain</option>
+        </select>
+        
+        <div class="cgv-container">
+            <label>
+                <input type="checkbox" id="check-cgv" onchange="validerBouton()">
+                J'accepte les conditions générales m'engageant formellement à être présent(e) à la sortie du jeudi 23 juillet quoi qu'il arrive.
+            </label>
+        </div>
+        
+        <button class="start-btn" id="btn-start" onclick="commencer()" disabled>Voir les restos</button>
+    </div>
+
+    <div id="ecran-vote">
+        <div class="tinder-header">RestoSwipe</div>
+        
+        <div class="cartes-container" id="cartes-container">
+        </div>
+
+        <div class="boutons-action" id="boutons-action">
+            <button class="bouton-rond" id="btn-non" onclick="boutonSwipe('gauche')">✖</button>
+            <button class="bouton-rond" id="btn-oui" onclick="boutonSwipe('droite')">♥</button>
+        </div>
+    </div>
+
+    <div id="message-fin">
+        <h2>C'est noté !</h2>
+        <p>Tes choix ont été envoyés dans la base de données secrète.</p>
+        <p>Rendez-vous le jeudi 23 juillet pour le verdict final.</p>
+    </div>
+
+    <script>
+        const urlAPI = "TON_URL_GOOGLE_APPS_SCRIPT_ICI";
+        
+        const restos = [
+            { nom: "Le Kebab du coin", image: "https://via.placeholder.com/400x500/ff7f50/ffffff?text=Kebab" },
+            { nom: "Pizzeria Napoli", image: "https://via.placeholder.com/400x500/87cefa/ffffff?text=Pizza" },
+            { nom: "Bistrot sympa", image: "https://via.placeholder.com/400x500/3cb371/ffffff?text=Bistrot" },
+            { nom: "Sushi Zen", image: "https://via.placeholder.com/400x500/ff69b4/ffffff?text=Sushi" }
+        ];
+
+        const tetes = ["adavan.png", "tristan.png", "marie.png", "leila.png", "cricri.png", "romain.png"];
+        
+        let personne = "";
+
+        window.onload = function() {
+            creerPluie();
+        };
+
+        function creerPluie() {
+            const conteneur = document.getElementById("pluie-container");
+            for (let i = 0; i < 20; i++) {
+                let img = document.createElement("img");
+                img.src = tetes[Math.floor(Math.random() * tetes.length)];
+                img.className = "tete-pluie";
+                img.style.left = Math.random() * 100 + "vw";
+                img.style.animationDuration = (Math.random() * 4 + 4) + "s";
+                img.style.animationDelay = (Math.random() * 5) + "s";
+                conteneur.appendChild(img);
+            }
+        }
+
+        function validerBouton() {
+            const select = document.getElementById("select-personne").value;
+            const checkbox = document.getElementById("check-cgv").checked;
+            document.getElementById("btn-start").disabled = !(select !== "" && checkbox);
+        }
+
+        document.getElementById("select-personne").addEventListener("change", validerBouton);
+
+        function commencer() {
+            personne = document.getElementById("select-personne").value;
+            document.getElementById("ecran-connexion").style.display = "none";
+            document.getElementById("ecran-vote").style.display = "flex";
+            genererCartes();
+        }
+
+        function genererCartes() {
+            const container = document.getElementById("cartes-container");
+            for (let i = restos.length - 1; i >= 0; i--) {
+                const div = document.createElement("div");
+                div.className = "carte";
+                div.innerHTML = `
+                    <img src="${restos[i].image}" alt="Photo de ${restos[i].nom}">
+                    <div class="carte-infos">${restos[i].nom}</div>
+                `;
+                container.appendChild(div);
+                ajouterEventSwipe(div, restos[i].nom);
+            }
+        }
+
+        function ajouterEventSwipe(element, nomResto) {
+            let startX = 0;
+            let currentX = 0;
+            let isDragging = false;
+
+            element.addEventListener("mousedown", dragStart);
+            element.addEventListener("touchstart", dragStart, {passive: true});
+            
+            document.addEventListener("mousemove", dragMove);
+            document.addEventListener("touchmove", dragMove, {passive: true});
+            
+            document.addEventListener("mouseup", dragEnd);
+            document.addEventListener("touchend", dragEnd);
+
+            function dragStart(e) {
+                if (element !== document.querySelector('.carte:last-child')) return;
+                isDragging = true;
+                startX = e.type.includes("mouse") ? e.clientX : e.touches[0].clientX;
+                element.style.transition = "none";
+            }
+
+            function dragMove(e) {
+                if (!isDragging) return;
+                const x = e.type.includes("mouse") ? e.clientX : e.touches[0].clientX;
+                currentX = x - startX;
+                const rotation = currentX * 0.05;
+                element.style.transform = `translate(${currentX}px, 0) rotate(${rotation}deg)`;
+            }
+
+            function dragEnd(e) {
+                if (!isDragging) return;
+                isDragging = false;
+                element.style.transition = "transform 0.3s ease";
+                
+                const seuil = 100;
+                if (currentX > seuil) {
+                    accepterCarte(element, nomResto);
+                } else if (currentX < -seuil) {
+                    refuserCarte(element, nomResto);
+                } else {
+                    element.style.transform = "translate(0px, 0px) rotate(0deg)";
+                }
+                currentX = 0;
+            }
+        }
+
+        function boutonSwipe(direction) {
+            const carte = document.querySelector('.carte:last-child');
+            if (!carte) return;
+            
+            const nomResto = carte.querySelector('.carte-infos').innerText;
+            
+            if (direction === 'droite') {
+                accepterCarte(carte, nomResto);
+            } else {
+                refuserCarte(carte, nomResto);
+            }
+        }
+
+        function accepterCarte(element, nomResto) {
+            element.style.transform = "translate(1000px, 0) rotate(30deg)";
+            envoyerVote(nomResto, "oui");
+            retirerCarte(element);
+        }
+
+        function refuserCarte(element, nomResto) {
+            element.style.transform = "translate(-1000px, 0) rotate(-30deg)";
+            envoyerVote(nomResto, "non");
+            retirerCarte(element);
+        }
+
+        function retirerCarte(element) {
+            setTimeout(() => {
+                element.remove();
+                verifierFin();
+            }, 300);
+        }
+
+        function verifierFin() {
+            const cartesRestantes = document.querySelectorAll('.carte');
+            if (cartesRestantes.length === 0) {
+                document.getElementById("ecran-vote").style.display = "none";
+                document.getElementById("message-fin").style.display = "block";
+                lancerConfettis();
+            }
+        }
+        
+        function lancerConfettis() {
+            var duration = 3 * 1000;
+            var end = Date.now() + duration;
+
+            (function frame() {
+                confetti({
+                    particleCount: 5,
+                    angle: 60,
+                    spread: 55,
+                    origin: { x: 0 },
+                    colors: ['#fe3c72', '#1ce598', '#fd5068']
+                });
+                confetti({
+                    particleCount: 5,
+                    angle: 120,
+                    spread: 55,
+                    origin: { x: 1 },
+                    colors: ['#fe3c72', '#1ce598', '#fd5068']
+                });
+
+                if (Date.now() < end) {
+                    requestAnimationFrame(frame);
+                }
+            }());
+        }
+
+        function envoyerVote(restaurant, choix) {
+            /* 
+            retire les commentaires ci-dessous quand ton api est prete
+            fetch(urlAPI, {
+                method: 'POST',
+                body: JSON.stringify({ personne: personne, restaurant: restaurant, vote: choix })
+            });
+            */
+        }
+    </script>
+</body>
+</html>
